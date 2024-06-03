@@ -1,0 +1,12 @@
+[package]
+name = "bevy-animator"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+asefile = {version = "0.3.8", optional = true}
+bevy = "0.13.2"
+
+[features]
+default = ["aseprite"]
+aseprite = ["asefile"]
