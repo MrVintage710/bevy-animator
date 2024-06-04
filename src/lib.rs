@@ -1,39 +1,22 @@
-pub mod id;
-pub mod animator;
+pub mod animation;
 
 #[cfg(feature = "aseprite")]
 pub mod aseprite;
 
 use std::marker::PhantomData;
 use bevy::prelude::*;
-use id::Animation;
+use animation::Animation;
 
 //=================================================================================
-//    Animation Id
+//    AnimatorPLugin
 //=================================================================================
 
-#[derive(Default)]
-pub struct AnimationPlugin<A : Animation + Send + Sync + 'static>(PhantomData<A>);
+pub struct AnimatorPlugin;
 
-impl <A : Animation + Send + Sync + 'static> Plugin for AnimationPlugin<A> {
+impl Plugin for AnimatorPlugin {
     fn build(&self, app: &mut App) {
         if cfg!(feature = "aseprite") {
             app.add_plugins(aseprite::AsepriteAnimationPlugin);
         }
-    }
-}
-
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
     }
 }

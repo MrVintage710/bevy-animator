@@ -6,9 +6,9 @@
 use std::io;
 
 use asefile::AsepriteFile;
-use bevy::{asset::{AssetIndex, AssetLoader, AsyncReadExt}, ecs::query::WorldQuery, prelude::{Vec2, *}, render::{render_asset::RenderAssetUsages, render_resource::{Extent3d, TextureDimension, TextureFormat}}, utils::HashMap};
+use bevy::{asset::{AssetIndex, AssetLoader, AsyncReadExt}, ecs::query::{QueryData, ReadOnlyQueryData, WorldQuery}, prelude::{Query, Vec2, *}, render::{render_asset::RenderAssetUsages, render_resource::{Extent3d, TextureDimension, TextureFormat}}, utils::HashMap};
 
-use crate::id::Animation;
+use crate::animation::{Animation, AnimationContext};
 
 //=================================================================================
 //    AsepriteAnimationPlugin
@@ -39,22 +39,9 @@ pub struct Aseprite {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Frame {
-    pub duration : u32,
     pub start : u32,
     pub end : u32
 }
-
-// #[derive(Clone)]
-// pub struct AnimClip {
-//     frames : Vec<AnimFrame>,
-//     pub duration : u32
-// }
-
-// #[derive(Clone)]
-// pub struct AnimFrame {
-//     frame_index : usize,
-//     duration : u32
-// }
 
 //=================================================================================
 //    Aseprite Asset Loader
@@ -109,6 +96,16 @@ impl AssetLoader for AsepriteLoader {
             let image_handle = load_context.add_loaded_labeled_asset("atlas", loaded_image);
             let layout_handle = load_context.add_loaded_labeled_asset("layout", loaded_layout);
             
+            let mut anims = HashMap::default();
+            for tag_index in 0..aseprite.num_tags() {
+                let tag = aseprite.tag(tag_index);
+                let frame = Frame {
+                    start: tag.from_frame(),
+                    end: tag.to_frame()
+                };
+                anims.insert(tag.name().to_string(), frame);
+            }
+            
             Ok(Aseprite { layout: layout_handle, image: image_handle, anims: HashMap::default(), dimensions: UVec2::new(aseprite.width() as u32, aseprite.height() as u32) })
         })
     }
@@ -122,23 +119,29 @@ impl AssetLoader for AsepriteLoader {
 //    Aseprite Animation
 //=================================================================================
 
-pub trait AsepriteAnimation : Sized {    
-    fn from_tag(tag_name : &str) -> Option<Self>;
+pub trait AsepriteAnimation : Sized {
+    type Query<'w, 's> : ReadOnlyQueryData;
+    
+    fn get_tag_name(&self) -> &str; 
     
     fn get_anchor_pixel() -> Vec2;
+    
+    fn update_state(&mut self, item : &<Self::Query<'_, '_> as WorldQuery>::Item<'_>);
 }
 
 impl <A : AsepriteAnimation> Animation for A {
     type AsociatedAsset = Aseprite;
 
-    type Query<'w, 's> = ();
+    type Query<'w, 's> = &'w mut TextureAtlas;
 
     fn apply(
-        &self, 
+        &mut self, 
         items : &mut <Self::Query<'_, '_> as WorldQuery>::Item<'_>, 
         asset : &Self::AsociatedAsset,
-        time : &Time,
+        animation_context : &AnimationContext,
     ) {
+        self.update_state(item)
+        
         todo!()
     }
 }
