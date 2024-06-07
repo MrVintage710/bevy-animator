@@ -6,7 +6,7 @@
 
 use std::marker::PhantomData;
 
-use bevy::{ecs::{query::{QueryData, WorldQuery}, system::SystemParam}, prelude::*};
+use bevy::{asset::AssetPath, ecs::{query::{QueryData, WorldQuery}, system::SystemParam}, prelude::*};
 
 //=================================================================================
 //    Animation Plugin
@@ -38,10 +38,9 @@ pub fn update_animators<A : Animation + Send + Sync + 'static>(
     time : Res<Time>,
 ) {
     for (mut animator, mut query, handle) in animators.iter_mut() {
-        animator.animation_context.progress += time.delta_seconds() / animator.animation_context.length;
-        let asset = assets.get(handle).expect("There was an error while animating. Asset doesn't exist.");
-        let context = animator.animation_context;
-        animator.current_state.apply(&mut query, asset, &context);
+        let Some(asset) = assets.get(handle) else { continue };
+        animator.progress += time.delta_seconds() / animator.current_state.duration(asset);
+        A::apply(&mut animator, &mut query, asset);
     }
 }
 
@@ -49,19 +48,21 @@ pub fn update_animators<A : Animation + Send + Sync + 'static>(
 //    Animation
 //=================================================================================
 
-pub trait Animation {
+pub trait Animation : Sized {
     
     type AsociatedAsset : Asset;
     
     type Query<'w, 's> : QueryData;
     
     fn apply(
-        &mut self, 
-        // items : &mut <Self::Query<'_, '_> as WorldQuery>::Item<'_>,
+        animator : &mut Animator<Self>, 
         items : &mut <Self::Query<'_, '_> as WorldQuery>::Item<'_>,
         asset : &Self::AsociatedAsset,
-        animation_context : &AnimationContext
     );
+    
+    fn spawn<'a>(commands : &mut Commands, file : Handle<Self::AsociatedAsset>);
+    
+    fn duration(&self, asset : &Self::AsociatedAsset) -> f32;
 }
 
 //=================================================================================
@@ -70,8 +71,41 @@ pub trait Animation {
 
 #[derive(Component)]
 pub struct Animator<A : Animation> {
-    current_state: A,
-    animation_context : AnimationContext,
+    pub current_state: A,
+    pub speed : f32,
+    progress : f32,
+}
+
+impl <A : Animation + Default> Default for Animator<A> {
+    fn default() -> Self {
+        Animator {
+            current_state : A::default(),
+            progress : 0.0,
+            speed : 1.0,
+        }
+    }
+}
+
+impl <A : Animation> Animator<A> {
+    pub fn new(current_state : A) -> Self {
+        Animator {
+            current_state,
+            progress : 0.0,
+            speed : 1.0,
+        }
+    }
+    
+    pub fn progress(&self) -> f32 {
+        self.progress.fract()
+    }
+    
+    pub fn repititions(&self) -> u32 {
+        self.progress.floor() as u32
+    }
+    
+    pub fn total_progress(&self) -> f32 {
+        self.progress
+    }
 }
 
 //=================================================================================
@@ -80,7 +114,7 @@ pub struct Animator<A : Animation> {
 
 #[derive(Clone, Copy)]
 pub struct AnimationContext {
-    length : f32,
+    duration : f32,
     progress : f32,
 }
 

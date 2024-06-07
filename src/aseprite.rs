@@ -3,12 +3,11 @@
 // Animation ID.
 //=================================================================================
 
-use std::io;
-
 use asefile::AsepriteFile;
-use bevy::{asset::{AssetIndex, AssetLoader, AsyncReadExt}, ecs::query::{QueryData, ReadOnlyQueryData, WorldQuery}, prelude::{Query, Vec2, *}, render::{render_asset::RenderAssetUsages, render_resource::{Extent3d, TextureDimension, TextureFormat}}, utils::HashMap};
+use bevy::{asset::{AssetLoader, AsyncReadExt}, ecs::query::WorldQuery, prelude::{Vec2, *}, render::{render_asset::RenderAssetUsages, render_resource::{Extent3d, TextureDimension, TextureFormat}, texture::ImageSampler}, utils::HashMap};
+use btree_range_map::RangeMap;
 
-use crate::animation::{Animation, AnimationContext};
+use crate::animation::{Animation, Animator};
 
 //=================================================================================
 //    AsepriteAnimationPlugin
@@ -33,14 +32,15 @@ impl Plugin for AsepriteAnimationPlugin {
 pub struct Aseprite {
     layout : Handle<TextureAtlasLayout>,
     image : Handle<Image>,
-    anims : HashMap<String, Frame>,
+    duration : Vec<u32>,
+    anims : HashMap<String, Anim>,
     dimensions : UVec2
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
-pub struct Frame {
-    pub start : u32,
-    pub end : u32
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Anim {
+    pub frame_map : RangeMap<f32, usize>,
+    duration : f32
 }
 
 //=================================================================================
@@ -72,9 +72,10 @@ impl AssetLoader for AsepriteLoader {
             let layout_loader = load_context.begin_labeled_asset();
             let mut atlas = TextureAtlasBuilder::default();
             let mut frames = Vec::new();
+            let mut durations = Vec::new();
             for frame_index in 0..aseprite.num_frames() {
                 let frame = aseprite.frame(frame_index);
-                let image = Image::new(
+                let mut image = Image::new(
                     Extent3d {
                        width: aseprite.width() as u32,
                        height: aseprite.height() as u32,
@@ -85,6 +86,8 @@ impl AssetLoader for AsepriteLoader {
                    TextureFormat::Rgba8UnormSrgb, 
                    RenderAssetUsages::all()
                 );
+                image.sampler = ImageSampler::nearest();
+                durations.push(frame.duration());
                 frames.push(image);
             }
             for image in frames.iter() { atlas.add_texture(None, image); }
@@ -99,14 +102,24 @@ impl AssetLoader for AsepriteLoader {
             let mut anims = HashMap::default();
             for tag_index in 0..aseprite.num_tags() {
                 let tag = aseprite.tag(tag_index);
-                let frame = Frame {
-                    start: tag.from_frame(),
-                    end: tag.to_frame()
-                };
-                anims.insert(tag.name().to_string(), frame);
+                let duration = (tag.from_frame()..=tag.to_frame())
+                    .map(|index| durations[index as usize])
+                    .sum::<u32>();
+                let mut frame_map = RangeMap::new();
+                let mut last : f32 = 0.0;
+                for frame_index in tag.from_frame()..=tag.to_frame() {
+                    let current_duration = durations[frame_index as usize] as f32 / duration as f32;
+                    frame_map.insert(last..last + current_duration, frame_index as usize);
+                    last += current_duration;
+                }
+                let anim = Anim { frame_map, duration: duration as f32 / 1000.0 };
+                anims.insert(tag.name().to_string(), anim);
             }
             
-            Ok(Aseprite { layout: layout_handle, image: image_handle, anims: HashMap::default(), dimensions: UVec2::new(aseprite.width() as u32, aseprite.height() as u32) })
+            let mut frame_map = RangeMap::new();
+            frame_map.insert(0.0..1.0, "test");
+            
+            Ok(Aseprite { layout: layout_handle, duration: durations, image: image_handle, anims, dimensions: UVec2::new(aseprite.width() as u32, aseprite.height() as u32) })
         })
     }
 
@@ -119,29 +132,50 @@ impl AssetLoader for AsepriteLoader {
 //    Aseprite Animation
 //=================================================================================
 
-pub trait AsepriteAnimation : Sized {
-    type Query<'w, 's> : ReadOnlyQueryData;
+pub trait AsepriteAnimation : Sized + Default {
+    type State : Component;
     
-    fn get_tag_name(&self) -> &str; 
+    fn get_tag_name(&self) -> &str;
     
     fn get_anchor_pixel() -> Vec2;
     
-    fn update_state(&mut self, item : &<Self::Query<'_, '_> as WorldQuery>::Item<'_>);
+    fn update_state(&mut self, item : &Self::State);
 }
 
 impl <A : AsepriteAnimation> Animation for A {
     type AsociatedAsset = Aseprite;
 
-    type Query<'w, 's> = &'w mut TextureAtlas;
+    type Query<'w, 's> = (&'w mut TextureAtlas, Option<&'w A::State>);
 
     fn apply(
-        &mut self, 
+        animator : &mut Animator<Self>, 
         items : &mut <Self::Query<'_, '_> as WorldQuery>::Item<'_>, 
         asset : &Self::AsociatedAsset,
-        animation_context : &AnimationContext,
     ) {
-        self.update_state(item)
+        let (atlas, item) = items;
+        atlas.layout = asset.layout.clone();
         
-        todo!()
+        if let Some(item) = item {
+            animator.current_state.update_state(item);
+        }
+        
+        let tag = animator.current_state.get_tag_name();
+        if let Some(anim) = asset.anims.get(tag) {
+            let frame = anim.frame_map.get(animator.progress()).unwrap_or_else(|| {println!("{}", animator.progress()); &0});
+            atlas.index = *frame;
+        }
+    }
+
+    fn spawn<'a>(commands : &mut Commands, asset : Handle<Self::AsociatedAsset>) {
+        // commands.spawn((
+        //     asset,
+        //     Animator::<A>::default(),
+            
+        // ));
+    }
+
+    fn duration(&self, asset : &Self::AsociatedAsset) -> f32 {
+        let anim = asset.anims.get(self.get_tag_name()).unwrap();
+        anim.duration
     }
 }

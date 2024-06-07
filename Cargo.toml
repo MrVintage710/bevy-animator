@@ -6,7 +6,11 @@ edition = "2021"
 [dependencies]
 asefile = {version = "0.3.8", optional = true}
 bevy = "0.13.2"
+btree-range-map = { version = "0.7.2", optional = true }
 
 [features]
 default = ["aseprite"]
-aseprite = ["asefile"]
+aseprite = ["dep:asefile", "dep:btree-range-map"]
+
+[dev-dependencies]
+bevy-inspector-egui = "0.24.0"
