@@ -1,10 +1,11 @@
 pub mod animation;
+pub mod state;
 
 #[cfg(feature = "aseprite")]
 pub mod aseprite;
 
 use std::{any::{type_name, TypeId}, marker::PhantomData};
-use bevy::{asset::AssetPath, prelude::*};
+use bevy::{asset::AssetPath, ecs::system::EntityCommands, prelude::*};
 use animation::{Animation, Animator};
 
 //=================================================================================
@@ -22,39 +23,30 @@ impl Plugin for AnimatorPlugin {
 }
 
 //=================================================================================
-//    SpawnAnimationCommand
+//    Animation Spawn Commands
 //=================================================================================
 
-pub trait SpawnAnimationCommand {
-    fn spawn_animation_default<A : Animation + Default>(&mut self, animation : A, handle : Handle<A::AsociatedAsset>, duration : f32);
-    
-    fn spawn_animation<A : Animation + Default>(&mut self, animation : A, handle : Handle<A::AsociatedAsset>, duration : f32);
+pub trait InitAnimationCommand {
+    fn init_animation<A : Animation + FromWorld + Send + Sync + 'static>(&mut self, path : &str) -> EntityCommands;
 }
 
-impl <'w, 's> SpawnAnimationCommand for Commands<'w, 's> {
-    fn spawn_animation_default<A : Animation + Default>(&mut self, animation : A, handle : Handle<A::AsociatedAsset>, duration : f32) {
-        // let path = file.into();
+impl <'w, 's> InitAnimationCommand for Commands<'w, 's> {
+    fn init_animation<A : Animation + FromWorld + Send + Sync + 'static>(&mut self, path : &str) -> EntityCommands {
+        let entity = self.spawn_empty().id();
+        let path = path.to_string();
         self.add(move |world : &mut World| {
-            
-            // let asset_server = world
-            //     .get_resource::<AssetServer>()
-            //     .expect("Error while spawning animation: Asset server not initialized. Make sure you have the 'AssetPlugin' added to your app.");
-            
-            // let assets = world
-            //     .get_resource::<Assets<A::AsociatedAsset>>()
-            //     .expect(format!("Error while spawning animation: Animation type '{0}' not setup. Setup by adding the 'AnimationPlugin::<{0}>::default()' plugin to your app.", type_name::<A>()).as_str());
-        
-            // world.spawn((handle, Animator::<A>::default_with_duration(duration)));
-            
-            // if asset_server.is_loaded_with_dependencies(handle.id()) {
-            //     let asset = assets.get(handle.id()).unwrap();
-            // } else {
-                
-            // }
+            A::spawn(world, path, entity);
         });
+        self.entity(entity)
     }
+}
 
-    fn spawn_animation<A : Animation + Default>(&mut self, animation : A, handle : Handle<A::AsociatedAsset>, duration : f32) {
-        todo!()
+pub trait InsertAnimationCommand<A : Animation> {
+    fn insert_animation<'p>(&mut self, animation : A, path : impl Into<AssetPath<'p>>);
+}
+
+impl <'w, 's, A : Animation + FromWorld> InsertAnimationCommand<A> for Commands<'w, 's> {
+    fn insert_animation<'p>(&mut self, animation : A, path : impl Into<AssetPath<'p>>) {
+        
     }
 }

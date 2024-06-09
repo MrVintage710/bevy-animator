@@ -39,7 +39,7 @@ pub fn update_animators<A : Animation + Send + Sync + 'static>(
 ) {
     for (mut animator, mut query, handle) in animators.iter_mut() {
         let Some(asset) = assets.get(handle) else { continue };
-        animator.progress += time.delta_seconds() / animator.current_state.duration(asset);
+        animator.progress += time.delta_seconds() / animator.current_state.duration(asset) * animator.speed;
         A::apply(&mut animator, &mut query, asset);
     }
 }
@@ -60,7 +60,7 @@ pub trait Animation : Sized {
         asset : &Self::AsociatedAsset,
     );
     
-    fn spawn<'a>(commands : &mut Commands, file : Handle<Self::AsociatedAsset>);
+    fn spawn(world: &mut World, path : String, entity : Entity);
     
     fn duration(&self, asset : &Self::AsociatedAsset) -> f32;
 }

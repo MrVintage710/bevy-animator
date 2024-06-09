@@ -6,7 +6,7 @@
 
 
 use bevy::{prelude::*, window::close_on_esc};
-use bevy_animator::{animation::{AnimationPlugin, Animator}, aseprite::{Aseprite, AsepriteAnimation}, AnimatorPlugin, SpawnAnimationCommand};
+use bevy_animator::{animation::{AnimationPlugin, Animator}, aseprite::{Aseprite, AsepriteStateAnimation}, AnimatorPlugin, InitAnimationCommand};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
 //==============================================================================
@@ -41,34 +41,19 @@ pub fn main() {
 /// This system initializes the game by adding a camera and the player character.
 pub fn initialize(
     mut commands : Commands,
-    asset_server : Res<AssetServer>,
 ) {
     
     commands.spawn(Camera2dBundle::default());
+    commands.init_animation::<CharacterAnimation>("character.aseprite")
+        .insert(Transform::from_scale(Vec3::splat(10.0)));
     
-    let animation : Handle<Aseprite> = asset_server.load("character.aseprite");
-    let atlas : Handle<Image> = asset_server.load("character.aseprite#atlas");
-    let layout : Handle<TextureAtlasLayout> = asset_server.load("character.aseprite#layout");
-    // commands.spawn_animation(animation);
-    
-    commands.spawn((
-        SpriteSheetBundle {
-            texture : atlas,
-            atlas : TextureAtlas { layout, index: 0 },
-            transform : Transform::from_scale(Vec3::splat(10.0)),
-            ..Default::default()
-        },
-        animation,
-        Animator::<CharacterAnimation>::default(),
-        PlayerCharacter::default()
-    ));
 }
 
 pub fn walk(
     keys : Res<ButtonInput<KeyCode>>,
     mut player : Query<&mut PlayerCharacter>,
 ) {
-    let mut player = player.single_mut();
+    let Ok(mut player) = player.get_single_mut() else { return };
     let mut direction = player.looking_direction;
     
     let left_pressed = keys.pressed(KeyCode::KeyA) || keys.pressed(KeyCode::ArrowLeft);
@@ -137,7 +122,7 @@ pub enum CharacterAnimation {
     RunDown,
 }
 
-impl AsepriteAnimation for CharacterAnimation {
+impl AsepriteStateAnimation for CharacterAnimation {
     type State = PlayerCharacter;
 
     fn get_tag_name(&self) -> &str {

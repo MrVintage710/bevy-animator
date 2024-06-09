@@ -129,11 +129,21 @@ impl AssetLoader for AsepriteLoader {
 }
 
 //=================================================================================
-//    Aseprite Animation
+//    Aseprite State Animation
 //=================================================================================
 
-pub trait AsepriteAnimation : Sized + Default {
-    type State : Component;
+pub trait AsepriteSimpleAnimation : Sized + FromWorld {
+    fn get_tag_name(&self) -> &str;
+    
+    fn get_anchor_pixel() -> Vec2;
+}
+
+//=================================================================================
+//    Aseprite State Animation
+//=================================================================================
+
+pub trait AsepriteStateAnimation : Sized + FromWorld {
+    type State : Component + FromWorld;
     
     fn get_tag_name(&self) -> &str;
     
@@ -142,7 +152,7 @@ pub trait AsepriteAnimation : Sized + Default {
     fn update_state(&mut self, item : &Self::State);
 }
 
-impl <A : AsepriteAnimation> Animation for A {
+impl <A : AsepriteStateAnimation + Send + Sync + 'static> Animation for A {
     type AsociatedAsset = Aseprite;
 
     type Query<'w, 's> = (&'w mut TextureAtlas, Option<&'w A::State>);
@@ -165,17 +175,28 @@ impl <A : AsepriteAnimation> Animation for A {
             atlas.index = *frame;
         }
     }
-
-    fn spawn<'a>(commands : &mut Commands, asset : Handle<Self::AsociatedAsset>) {
-        // commands.spawn((
-        //     asset,
-        //     Animator::<A>::default(),
-            
-        // ));
+    
+    fn duration(&self, asset : &Self::AsociatedAsset) -> f32 {
+        asset.anims.get(self.get_tag_name()).unwrap().duration
     }
 
-    fn duration(&self, asset : &Self::AsociatedAsset) -> f32 {
-        let anim = asset.anims.get(self.get_tag_name()).unwrap();
-        anim.duration
+    fn spawn(world: &mut World, path : String, entity : Entity) {
+        let animation_comp = Self::from_world(world);
+        let state = A::State::from_world(world);
+        let asset_server = world.get_resource::<AssetServer>().unwrap();
+        let animation : Handle<Self::AsociatedAsset> = asset_server.load(&path);
+        let image : Handle<Image> = asset_server.load(format!("{}#atlas", path));
+        let layout : Handle<TextureAtlasLayout> = asset_server.load(format!("{}#layout", path));
+        
+        world.get_or_spawn(entity).unwrap()
+            .insert(Animator::new(animation_comp))
+            .insert(animation)
+            .insert(SpriteSheetBundle {
+                texture : image,
+                atlas : TextureAtlas { layout, index: 0 },
+                ..Default::default()
+            })
+            .insert(state)
+        ;
     }
 }
