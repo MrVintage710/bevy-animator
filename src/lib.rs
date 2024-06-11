@@ -1,12 +1,14 @@
 pub mod animation;
 pub mod state;
+pub mod util;
 
 #[cfg(feature = "aseprite")]
 pub mod aseprite;
 
 use std::{any::{type_name, TypeId}, marker::PhantomData};
 use bevy::{asset::AssetPath, ecs::system::EntityCommands, prelude::*};
-use animation::{Animation, Animator};
+use animation::{update_animators, Animation, Animator};
+use state::{update_states, AnimationState};
 
 //=================================================================================
 //    AnimatorPLugin
@@ -17,7 +19,9 @@ pub struct AnimatorPlugin;
 impl Plugin for AnimatorPlugin {
     fn build(&self, app: &mut App) {
         if cfg!(feature = "aseprite") {
-            app.add_plugins(aseprite::AsepriteAnimationPlugin);
+            app
+                .add_plugins(aseprite::AsepriteAnimationPlugin)
+            ;
         }
     }
 }

@@ -5,8 +5,8 @@
 //==============================================================================
 
 
-use bevy::{prelude::*, window::close_on_esc};
-use bevy_animator::{animation::{AnimationPlugin, Animator}, aseprite::{Aseprite, AsepriteStateAnimation}, AnimatorPlugin, InitAnimationCommand};
+use bevy_animator::{animation::{AnimationPlugin, Animator}, aseprite::{Aseprite, AsepriteAnimation}, state::{AnimationState, AnimationStatePlugin}, AnimatorPlugin, InitAnimationCommand};
+use bevy::{prelude::*, render::texture::ImagePlugin, window::close_on_esc, DefaultPlugins};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
 //==============================================================================
@@ -20,7 +20,8 @@ pub fn main() {
     app
         .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest())) // Add the default plugins for sprite rendering
         .add_plugins(AnimatorPlugin) // Add the animator plugin
-        .add_plugins(AnimationPlugin::<CharacterAnimation>::default()) // Register the animator defined later by adding a plguin for it.
+        .add_plugins(AnimationPlugin::<CharacterAnimation>::default())
+        .add_plugins(AnimationStatePlugin::<CharacterAnimation>::default())// Register the animator defined later by adding a plguin for it.
         .add_plugins(WorldInspectorPlugin::new()) // You don't need this, the is just for debugging
         
         .register_type::<PlayerCharacter>() // I am registering the player state so we can see it during runs
@@ -45,7 +46,9 @@ pub fn initialize(
     
     commands.spawn(Camera2dBundle::default());
     commands.init_animation::<CharacterAnimation>("character.aseprite")
-        .insert(Transform::from_scale(Vec3::splat(10.0)));
+        .insert(Transform::from_scale(Vec3::splat(10.0)))
+        .insert(PlayerCharacter::default())
+    ;
     
 }
 
@@ -105,7 +108,7 @@ pub struct PlayerCharacter {
 //           Character Animation Definition
 //==============================================================================
 
-#[derive(Component, Default)]
+#[derive(Default)]
 pub enum CharacterAnimation {
     #[default]
     IdleRight,
@@ -122,9 +125,7 @@ pub enum CharacterAnimation {
     RunDown,
 }
 
-impl AsepriteStateAnimation for CharacterAnimation {
-    type State = PlayerCharacter;
-
+impl AsepriteAnimation for CharacterAnimation {
     fn get_tag_name(&self) -> &str {
         match self {
             CharacterAnimation::IdleRight => "idle-right",
@@ -142,48 +143,55 @@ impl AsepriteStateAnimation for CharacterAnimation {
         }
     }
 
-    fn get_anchor_pixel() -> Vec2 {
-        Vec2::ZERO 
-    }
+    fn get_anchor_pixel() -> Vec2 { Vec2::new(8.5, 14.5) }
 
-    fn update_state(&mut self, item : &Self::State) {
-        if item.looking_direction.x.abs() > item.looking_direction.y.abs() {
-            if item.looking_direction.x > 0.0 {
-                if item.is_running {
-                    *self = CharacterAnimation::RunRight;
-                } else if item.is_walking {
-                    *self = CharacterAnimation::WalkRight;
+    fn get_dimensions() -> UVec2 {
+        UVec2::new(16, 16)
+    }
+}
+
+impl AnimationState for CharacterAnimation {
+    type StateQuery<'w, 's> = &'w PlayerCharacter;
+
+    fn update_state(animator : &mut Animator<Self>, data : & <Self::StateQuery<'_, '_> as bevy::ecs::query::WorldQuery>::Item<'_>) {
+        
+        // let animation = animator.get_current_animation();
+        if data.looking_direction.x.abs() > data.looking_direction.y.abs() {
+            if data.looking_direction.x > 0.0 {
+                if data.is_running {
+                    animator.set_animation(CharacterAnimation::RunRight);
+                } else if data.is_walking {
+                    animator.set_animation(CharacterAnimation::WalkRight);
                 } else {
-                    *self = CharacterAnimation::IdleRight;
+                    animator.set_animation(CharacterAnimation::IdleRight);
                 }
             } else {
-                if item.is_running {
-                    *self = CharacterAnimation::RunLeft;
-                } else if item.is_walking {
-                    *self = CharacterAnimation::WalkLeft;
+                if data.is_running {
+                    animator.set_animation(CharacterAnimation::RunLeft);
+                } else if data.is_walking {
+                    animator.set_animation(CharacterAnimation::WalkLeft);
                 } else {
-                    *self = CharacterAnimation::IdleLeft;
+                    animator.set_animation(CharacterAnimation::IdleLeft);
                 }
             }
         } else {
-            if item.looking_direction.y > 0.0 {
-                if item.is_running {
-                    *self = CharacterAnimation::RunUp;
-                } else if item.is_walking {
-                    *self = CharacterAnimation::WalkUp;
+            if data.looking_direction.y > 0.0 {
+                if data.is_running {
+                    animator.set_animation(CharacterAnimation::RunUp);
+                } else if data.is_walking {
+                    animator.set_animation(CharacterAnimation::WalkUp);
                 } else {
-                    *self = CharacterAnimation::IdleUp;
+                    animator.set_animation(CharacterAnimation::IdleUp);
                 }
             } else {
-                if item.is_running {
-                    *self = CharacterAnimation::RunDown;
-                } else if item.is_walking {
-                    *self = CharacterAnimation::WalkDown;
+                if data.is_running {
+                    animator.set_animation(CharacterAnimation::RunDown);
+                } else if data.is_walking {
+                    animator.set_animation(CharacterAnimation::WalkDown);
                 } else {
-                    *self = CharacterAnimation::IdleDown;
+                    animator.set_animation(CharacterAnimation::IdleDown);
                 }
             }
         }
     }
 }
-

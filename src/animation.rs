@@ -4,15 +4,17 @@
 // handle 2D animations for now but plan for 3D later.
 //=================================================================================
 
-use std::marker::PhantomData;
+use std::{marker::PhantomData, result};
 
 use bevy::{asset::AssetPath, ecs::{query::{QueryData, WorldQuery}, system::SystemParam}, prelude::*};
+
+use crate::state::AnimationState;
 
 //=================================================================================
 //    Animation Plugin
 //=================================================================================
 
-pub struct AnimationPlugin<A : Animation + Send + Sync + 'static>(PhantomData<A>);
+pub struct AnimationPlugin<A : Animation>(PhantomData<A>);
 
 impl <A : Animation + Send + Sync + 'static> Default for AnimationPlugin<A> {
     fn default() -> Self {
@@ -22,6 +24,7 @@ impl <A : Animation + Send + Sync + 'static> Default for AnimationPlugin<A> {
 
 impl <A : Animation + Send + Sync + 'static> Plugin for AnimationPlugin<A> {
     fn build(&self, app: &mut App) {
+        
         app
             .add_systems(PostUpdate, update_animators::<A>)
         ;
@@ -32,7 +35,7 @@ impl <A : Animation + Send + Sync + 'static> Plugin for AnimationPlugin<A> {
 //    Animation Systems
 //=================================================================================
 
-pub fn update_animators<A : Animation + Send + Sync + 'static>(
+pub(crate) fn update_animators<A : Animation + Send + Sync + 'static>(
     mut animators : Query<(&mut Animator<A>, A::Query<'_, '_>, &Handle<A::AsociatedAsset>)>,
     assets : Res<Assets<A::AsociatedAsset>>,
     time : Res<Time>,
@@ -65,6 +68,22 @@ pub trait Animation : Sized {
     fn duration(&self, asset : &Self::AsociatedAsset) -> f32;
 }
 
+impl Animation for () {
+    type AsociatedAsset = ();
+
+    type Query<'w, 's> = ();
+
+    fn apply(
+        _ : &mut Animator<Self>, 
+        _ : &mut <Self::Query<'_, '_> as WorldQuery>::Item<'_>,
+        _ : &Self::AsociatedAsset,
+    ) {}
+
+    fn spawn(_: &mut World, _ : String, _ : Entity) {}
+
+    fn duration(&self, _ : &Self::AsociatedAsset) -> f32 { 0.0 }
+}
+
 //=================================================================================
 //    Animator
 //=================================================================================
@@ -93,6 +112,14 @@ impl <A : Animation> Animator<A> {
             progress : 0.0,
             speed : 1.0,
         }
+    }
+    
+    pub fn set_animation(&mut self, animation : A) {
+        self.current_state = animation;
+    }
+    
+    pub fn reset(&mut self) {
+        self.progress = 0.0;
     }
     
     pub fn progress(&self) -> f32 {

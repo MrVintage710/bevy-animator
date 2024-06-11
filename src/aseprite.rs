@@ -4,7 +4,7 @@
 //=================================================================================
 
 use asefile::AsepriteFile;
-use bevy::{asset::{AssetLoader, AsyncReadExt}, ecs::query::WorldQuery, prelude::{Vec2, *}, render::{render_asset::RenderAssetUsages, render_resource::{Extent3d, TextureDimension, TextureFormat}, texture::ImageSampler}, utils::HashMap};
+use bevy::{asset::{AssetLoader, AsyncReadExt}, ecs::query::WorldQuery, prelude::{Vec2, *}, render::{render_asset::RenderAssetUsages, render_resource::{Extent3d, TextureDimension, TextureFormat}, texture::ImageSampler}, sprite::Anchor, utils::HashMap};
 use btree_range_map::RangeMap;
 
 use crate::animation::{Animation, Animator};
@@ -132,47 +132,36 @@ impl AssetLoader for AsepriteLoader {
 //    Aseprite State Animation
 //=================================================================================
 
-pub trait AsepriteSimpleAnimation : Sized + FromWorld {
+/// This trait will allow you to animate a sprite with an aseprite animation file. 
+pub trait AsepriteAnimation : Sized + FromWorld {
+    
+    /// Animations are defined by tags inside of asesprite files. This function will tell bevy what animation to use based
+    /// on the current state of the struct that implements this trait. This is intended to allow Enums to be used to have
+    /// animation states.
     fn get_tag_name(&self) -> &str;
     
-    fn get_anchor_pixel() -> Vec2;
+    /// This should return the pixel
+    fn get_anchor_pixel() -> Vec2 { Vec2::ZERO }
+    
+    fn get_dimensions() -> UVec2;
 }
 
-//=================================================================================
-//    Aseprite State Animation
-//=================================================================================
-
-pub trait AsepriteStateAnimation : Sized + FromWorld {
-    type State : Component + FromWorld;
-    
-    fn get_tag_name(&self) -> &str;
-    
-    fn get_anchor_pixel() -> Vec2;
-    
-    fn update_state(&mut self, item : &Self::State);
-}
-
-impl <A : AsepriteStateAnimation + Send + Sync + 'static> Animation for A {
+impl <A : AsepriteAnimation + Send + Sync + 'static> Animation for A {
     type AsociatedAsset = Aseprite;
 
-    type Query<'w, 's> = (&'w mut TextureAtlas, Option<&'w A::State>);
+    type Query<'w, 's> = &'w mut TextureAtlas;
 
     fn apply(
         animator : &mut Animator<Self>, 
         items : &mut <Self::Query<'_, '_> as WorldQuery>::Item<'_>, 
         asset : &Self::AsociatedAsset,
     ) {
-        let (atlas, item) = items;
-        atlas.layout = asset.layout.clone();
-        
-        if let Some(item) = item {
-            animator.current_state.update_state(item);
-        }
+        items.layout = asset.layout.clone();
         
         let tag = animator.current_state.get_tag_name();
         if let Some(anim) = asset.anims.get(tag) {
             let frame = anim.frame_map.get(animator.progress()).unwrap_or_else(|| {println!("{}", animator.progress()); &0});
-            atlas.index = *frame;
+            items.index = *frame;
         }
     }
     
@@ -182,11 +171,18 @@ impl <A : AsepriteStateAnimation + Send + Sync + 'static> Animation for A {
 
     fn spawn(world: &mut World, path : String, entity : Entity) {
         let animation_comp = Self::from_world(world);
-        let state = A::State::from_world(world);
         let asset_server = world.get_resource::<AssetServer>().unwrap();
         let animation : Handle<Self::AsociatedAsset> = asset_server.load(&path);
         let image : Handle<Image> = asset_server.load(format!("{}#atlas", path));
         let layout : Handle<TextureAtlasLayout> = asset_server.load(format!("{}#layout", path));
+        
+        let anchor_origin = Vec2::new(-0.5, 0.5);
+        let anchor_pixel = Self::get_anchor_pixel();
+        let dimensions = Self::get_dimensions();
+        let anchor_x = anchor_pixel.x / dimensions.x as f32;
+        let anchor_y = anchor_pixel.y / dimensions.y as f32;
+        let anchor_offset = Vec2::new(anchor_x, -anchor_y);
+        let anchor = Anchor::Custom(anchor_origin + anchor_offset);
         
         world.get_or_spawn(entity).unwrap()
             .insert(Animator::new(animation_comp))
@@ -194,9 +190,12 @@ impl <A : AsepriteStateAnimation + Send + Sync + 'static> Animation for A {
             .insert(SpriteSheetBundle {
                 texture : image,
                 atlas : TextureAtlas { layout, index: 0 },
+                sprite : Sprite {
+                    anchor,
+                    ..Default::default()
+                },
                 ..Default::default()
             })
-            .insert(state)
         ;
     }
 }
