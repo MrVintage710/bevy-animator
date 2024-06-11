@@ -4,9 +4,7 @@
 //=================================================================================
 
 use std::marker::PhantomData;
-
-use bevy::{ecs::query::{QueryData, ReadOnlyQueryData, WorldQuery}, prelude::*};
-
+use bevy::{ecs::query::{ReadOnlyQueryData, WorldQuery}, prelude::*};
 use crate::animation::{update_animators, Animation, Animator};
 
 //=================================================================================
@@ -46,9 +44,12 @@ pub(crate) fn update_states<A : AnimationState + Send + Sync + 'static>(
 //    Animation State
 //=================================================================================
 
+/// This trait is used to allow animations to update their state based on the compenent the animation is attached to.
 pub trait AnimationState : Animation {
     
+    /// The query that will allow the animation to read data from the component it is attached to.
     type StateQuery<'w, 's> : ReadOnlyQueryData;
     
+    /// This method will update the state of the animation based on the data from the component it is attached to.
     fn update_state(animator : &mut Animator<Self>, data : & <Self::StateQuery<'_, '_> as WorldQuery>::Item<'_>);
 }

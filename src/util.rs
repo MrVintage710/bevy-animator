@@ -3,8 +3,9 @@
 // and control the animations in a way that is easy to use. This is a work in progress!!!
 //==============================================================================
 
+#[allow(dead_code)]
 pub mod controls {
-    use bevy::{ecs::system::Resource, input::{gamepad::{Gamepad, GamepadAxisType, GamepadButton}, keyboard::KeyCode}, math::Vec2};
+    use bevy::{input::{gamepad::{GamepadAxisType, GamepadButton}, keyboard::KeyCode}, math::Vec2};
 
     pub struct Axis2d {
         control_mode : ControlMode,

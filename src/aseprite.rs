@@ -28,6 +28,8 @@ impl Plugin for AsepriteAnimationPlugin {
 //    Aseprite Asset
 //=================================================================================
 
+/// The Aseprite Asset. Only stores animation frames and tagged animations.
+#[allow(dead_code)]
 #[derive(Asset, TypePath)]
 pub struct Aseprite {
     layout : Handle<TextureAtlasLayout>,
@@ -38,7 +40,7 @@ pub struct Aseprite {
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
-pub struct Anim {
+struct Anim {
     pub frame_map : RangeMap<f32, usize>,
     duration : f32
 }
@@ -47,6 +49,7 @@ pub struct Anim {
 //    Aseprite Asset Loader
 //=================================================================================
 
+/// Asset Loader for Aseprite Files
 #[derive(Default)]
 pub struct AsepriteLoader;
 
@@ -60,7 +63,7 @@ impl AssetLoader for AsepriteLoader {
     fn load<'a>(
         &'a self,
         reader: &'a mut bevy::asset::io::Reader,
-        settings: &'a Self::Settings,
+        _: &'a Self::Settings,
         load_context: &'a mut bevy::asset::LoadContext,
     ) -> bevy::utils::BoxedFuture<'a, Result<Self::Asset, Self::Error>> {
         Box::pin(async move {
@@ -140,9 +143,10 @@ pub trait AsepriteAnimation : Sized + FromWorld {
     /// animation states.
     fn get_tag_name(&self) -> &str;
     
-    /// This should return the pixel
+    /// This should return the pixel that the sprite should be anchored to. This defaults to the middle of the sprite.
     fn get_anchor_pixel() -> Vec2 { Vec2::ZERO }
     
+    /// This is the size of each frame of the animation. With asesprite, all frames are the same size.
     fn get_dimensions() -> UVec2;
 }
 
@@ -152,15 +156,15 @@ impl <A : AsepriteAnimation + Send + Sync + 'static> Animation for A {
     type Query<'w, 's> = &'w mut TextureAtlas;
 
     fn apply(
-        animator : &mut Animator<Self>, 
+        animator : &Animator<Self>, 
         items : &mut <Self::Query<'_, '_> as WorldQuery>::Item<'_>, 
         asset : &Self::AsociatedAsset,
     ) {
         items.layout = asset.layout.clone();
         
-        let tag = animator.current_state.get_tag_name();
+        let tag = animator.animation.get_tag_name();
         if let Some(anim) = asset.anims.get(tag) {
-            let frame = anim.frame_map.get(animator.progress()).unwrap_or_else(|| {println!("{}", animator.progress()); &0});
+            let frame = anim.frame_map.get(animator.progress()).unwrap_or(&0);
             items.index = *frame;
         }
     }
@@ -169,8 +173,8 @@ impl <A : AsepriteAnimation + Send + Sync + 'static> Animation for A {
         asset.anims.get(self.get_tag_name()).unwrap().duration
     }
 
-    fn spawn(world: &mut World, path : String, entity : Entity) {
-        let animation_comp = Self::from_world(world);
+    fn spawn(animation : Option<Self>, world : &mut World, path : String, entity : Entity) {
+        let animation_comp = animation.unwrap_or(Self::from_world(world));
         let asset_server = world.get_resource::<AssetServer>().unwrap();
         let animation : Handle<Self::AsociatedAsset> = asset_server.load(&path);
         let image : Handle<Image> = asset_server.load(format!("{}#atlas", path));

@@ -5,7 +5,7 @@
 //==============================================================================
 
 
-use bevy_animator::{animation::{AnimationPlugin, Animator}, aseprite::{Aseprite, AsepriteAnimation}, state::{AnimationState, AnimationStatePlugin}, AnimatorPlugin, InitAnimationCommand};
+use bevy_animator::prelude::*;
 use bevy::{prelude::*, render::texture::ImagePlugin, window::close_on_esc, DefaultPlugins};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
@@ -20,7 +20,7 @@ pub fn main() {
     app
         .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest())) // Add the default plugins for sprite rendering
         .add_plugins(AnimatorPlugin) // Add the animator plugin
-        .add_plugins(AnimationPlugin::<CharacterAnimation>::default())
+        .add_plugins(bevy_animator::prelude::AnimationPlugin::<CharacterAnimation>::default())
         .add_plugins(AnimationStatePlugin::<CharacterAnimation>::default())// Register the animator defined later by adding a plguin for it.
         .add_plugins(WorldInspectorPlugin::new()) // You don't need this, the is just for debugging
         

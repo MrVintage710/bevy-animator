@@ -5,15 +5,24 @@ pub mod util;
 #[cfg(feature = "aseprite")]
 pub mod aseprite;
 
-use std::{any::{type_name, TypeId}, marker::PhantomData};
-use bevy::{asset::AssetPath, ecs::system::EntityCommands, prelude::*};
-use animation::{update_animators, Animation, Animator};
-use state::{update_states, AnimationState};
+use bevy::{ecs::system::EntityCommands, prelude::*};
+use animation::Animation;
+
+pub mod prelude {
+    pub use crate::AnimatorPlugin;
+    pub use crate::animation::{Animation, Animator, AnimationPlugin};
+    pub use crate::state::{AnimationState, AnimationStatePlugin};
+    pub use crate::{InitAnimationCommand, InsertAnimationCommand};
+    
+    #[cfg(feature = "aseprite")]
+    pub use crate::aseprite::{Aseprite, AsepriteAnimation};
+}
 
 //=================================================================================
 //    AnimatorPLugin
 //=================================================================================
 
+/// The Animator Plugin. This will add the animator plugins to the app based on what flags are set.
 pub struct AnimatorPlugin;
 
 impl Plugin for AnimatorPlugin {
@@ -39,18 +48,23 @@ impl <'w, 's> InitAnimationCommand for Commands<'w, 's> {
         let entity = self.spawn_empty().id();
         let path = path.to_string();
         self.add(move |world : &mut World| {
-            A::spawn(world, path, entity);
+            A::spawn(None, world, path, entity);
         });
         self.entity(entity)
     }
 }
 
-pub trait InsertAnimationCommand<A : Animation> {
-    fn insert_animation<'p>(&mut self, animation : A, path : impl Into<AssetPath<'p>>);
+pub trait InsertAnimationCommand {
+    fn insert_animation<A : Animation + Send + Sync + 'static>(&mut self, animation : A, path : &str) -> EntityCommands;
 }
 
-impl <'w, 's, A : Animation + FromWorld> InsertAnimationCommand<A> for Commands<'w, 's> {
-    fn insert_animation<'p>(&mut self, animation : A, path : impl Into<AssetPath<'p>>) {
-        
+impl <'w, 's> InsertAnimationCommand for Commands<'w, 's> {
+    fn insert_animation<A : Animation + Send + Sync + 'static>(&mut self, animation : A, path : &str) -> EntityCommands {
+        let entity = self.spawn_empty().id();
+        let path = path.to_string();
+        self.add(move |world : &mut World| {
+            A::spawn(Some(animation), world, path, entity);
+        });
+        self.entity(entity)
     }
 }
