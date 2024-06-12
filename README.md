@@ -1,11 +1,7 @@
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./git/bevy-animator-light.svg">
-  <img src="./git/bevy-animator-light.svg">
-</picture>
-
-<picture>
   <source media="(prefers-color-scheme: light)" srcset="./git/bevy-animator-dark.svg">
-  <img src="./git/bevy-animator-dark.svg">
+  <img>
 </picture>
 
 ** This Crate is still work in progress and isn't feature complete or stable. **
