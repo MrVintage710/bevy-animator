@@ -2,6 +2,8 @@
 name = "bevy-animator"
 version = "0.1.0"
 edition = "2021"
+keywords = ["bevy", "game-dev", "animation", "aseprite"]
+readme = "README.md"
 
 [dependencies]
 asefile = {version = "0.3.8", optional = true}
