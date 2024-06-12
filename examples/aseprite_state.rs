@@ -6,8 +6,7 @@
 
 
 use bevy_animator::prelude::*;
-use bevy::{prelude::*, render::texture::ImagePlugin, window::close_on_esc, DefaultPlugins};
-use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use bevy::{prelude::*, render::texture::ImagePlugin, DefaultPlugins};
 
 //==============================================================================
 //           Entry Point
@@ -20,15 +19,11 @@ pub fn main() {
     app
         .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest())) // Add the default plugins for sprite rendering
         .add_plugins(AnimatorPlugin) // Add the animator plugin
-        .add_plugins(bevy_animator::prelude::AnimationPlugin::<CharacterAnimation>::default())
-        .add_plugins(AnimationStatePlugin::<CharacterAnimation>::default())// Register the animator defined later by adding a plguin for it.
-        .add_plugins(WorldInspectorPlugin::new()) // You don't need this, the is just for debugging
-        
-        .register_type::<PlayerCharacter>() // I am registering the player state so we can see it during runs
+        .add_plugins(bevy_animator::prelude::AnimationPlugin::<CharacterAnimation>::default()) // Register the animation so the animator component can use it
+        .add_plugins(AnimationStatePlugin::<CharacterAnimation>::default()) // Register the animation state
     
         .add_systems(Startup, initialize) // Startup System
-    
-        .add_systems(Update, close_on_esc) // For debuging, allows us to close the window with the escape key
+        
         .add_systems(Update, walk) // This update the player state based on the input. See function later.
     ;
     
@@ -43,13 +38,11 @@ pub fn main() {
 pub fn initialize(
     mut commands : Commands,
 ) {
-    
     commands.spawn(Camera2dBundle::default());
     commands.init_animation::<CharacterAnimation>("character.aseprite")
         .insert(Transform::from_scale(Vec3::splat(10.0)))
         .insert(PlayerCharacter::default())
     ;
-    
 }
 
 pub fn walk(
@@ -143,7 +136,7 @@ impl AsepriteAnimation for CharacterAnimation {
         }
     }
 
-    fn get_anchor_pixel() -> Vec2 { Vec2::new(8.5, 14.5) }
+    fn get_anchor_pixel() -> Vec2 { Vec2::new(8.5, 8.5) }
 
     fn get_dimensions() -> UVec2 {
         UVec2::new(16, 16)
@@ -154,7 +147,6 @@ impl AnimationState for CharacterAnimation {
     type StateQuery<'w, 's> = &'w PlayerCharacter;
 
     fn update_state(animator : &mut Animator<Self>, data : & <Self::StateQuery<'_, '_> as bevy::ecs::query::WorldQuery>::Item<'_>) {
-        
         // let animation = animator.get_current_animation();
         if data.looking_direction.x.abs() > data.looking_direction.y.abs() {
             if data.looking_direction.x > 0.0 {
