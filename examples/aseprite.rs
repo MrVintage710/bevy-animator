@@ -16,7 +16,9 @@ pub fn main() {
     let mut app = App::new();
     
     app
-        .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest())) // Add the default plugins for sprite rendering
+        .add_plugins(DefaultPlugins
+            .set(ImagePlugin::default_nearest())
+        ) // Add the default plugins for sprite rendering
         .add_plugins(AnimatorPlugin) // Add the animator plugin
         .add_plugins(bevy_animator::prelude::AnimationPlugin::<KnightAnimation>::default())
         .add_plugins(WorldInspectorPlugin::new()) // You don't need this, the is just for debugging

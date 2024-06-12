@@ -13,4 +13,5 @@ default = ["aseprite"]
 aseprite = ["dep:asefile", "dep:btree-range-map"]
 
 [dev-dependencies]
+bevy = {version = "0.13.2", features = ["file_watcher"]}
 bevy-inspector-egui = "0.24.0"
