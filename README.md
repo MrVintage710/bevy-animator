@@ -1,6 +1,8 @@
-
-![bevy-animator-light](https://github.com/MrVintage710/bevy-animator/assets/8060151/276a32dc-a3a9-4944-8dca-103570b06794#gh-dark-mode-only)
-![bevy-animator-dark](https://github.com/MrVintage710/bevy-animator/assets/8060151/08bf0dde-9de6-4d7f-bf90-0c46ce5eeccf#gh-light-mode-only)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./git/bevy-animator-light.svg">
+  <source media="(prefers-color-scheme: light)" srcset="./git/bevy-animator-dark.svg">
+  <img>
+</picture>
 
 ** This Crate is still work in progress and isn't feature complete or stable. **
 
