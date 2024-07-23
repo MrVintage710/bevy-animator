@@ -2,7 +2,7 @@
 name = "bevy-animator"
 version = "0.1.0"
 edition = "2021"
-keywords = ["bevy", "game-dev", "animation", "aseprite"]
+keywords = ["bevy", "game-dev", "animation", "aseprite", "rust", "rust-lang"]
 readme = "README.md"
 license = "MIT OR Apache-2.0"
 description = "An animation library for Bevy that supports many animation formats and animation state machines."
