@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2021"
 keywords = ["bevy", "game-dev", "animation", "aseprite"]
 readme = "README.md"
+license = "MIT OR Apache-2.0"
+description = "An animation library for Bevy that supports many animation formats and animation state machines."
+repository = "https://github.com/MrVintage710/bevy-animator"
+authors = [ "MrVintage710" ]
 
 [dependencies]
 asefile = {version = "0.3.8", optional = true}
@@ -15,5 +19,5 @@ default = ["aseprite"]
 aseprite = ["dep:asefile", "dep:btree-range-map"]
 
 [dev-dependencies]
-bevy = {version = "0.13.2", features = ["file_watcher"]}
-bevy-inspector-egui = "0.24.0"
+bevy = {version = "0.13.2"}
+# bevy-inspector-egui = "0.24.0"
